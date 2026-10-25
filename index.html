@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shopping Garden Game</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* Экраны */
+        #start-screen {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #a8e063, #56ab2f);
+            color: white;
+            position: absolute;
+            z-index: 100;
+        }
+
+        #start-screen h1 {
+            font-size: 3rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            margin-bottom: 40px;
+        }
+
+        .btn {
+            padding: 15px 40px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            background: #fff;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            transition: transform 0.2s;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        #game-screen {
+            display: none;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        /* Интерфейс */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 30px;
+            font-size: 24px;
+            font-weight: bold;
+            background: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            position: absolute;
+            top: 0;
+            width: 100%;
+            box-sizing: border-box;
+            z-index: 10;
+        }
+
+        .side-menu {
+            position: absolute;
+            left: 20px;
+            top: 80px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 10;
+        }
+
+        .icon-btn {
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid #333;
+            border-radius: 10px;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        /* Биомы */
+        #biome-container {
+            flex: 1;
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-evenly;
+            padding-bottom: 80px;
+            background-size: cover;
+            background-position: bottom;
+            position: relative;
+            transition: background 0.5s ease;
+        }
+
+        .forest {
+            background: linear-gradient(to bottom, #87CEEB 60%, #8BC34A 60%);
+        }
+
+        .city {
+            background: linear-gradient(to bottom, #B0BEC5 60%, #78909C 60%);
+        }
+
+        #plants-container {
+            display: flex;
+            width: 80%;
+            justify-content: space-around;
+            align-items: flex-end;
+            z-index: 5;
+            transition: filter 0.3s;
+        }
+
+        /* Растения */
+        .plant-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .plant-wrapper:hover {
+            transform: scale(1.05);
+        }
+
+        .plant-label {
+            text-align: center;
+            font-size: 14px;
+            font-weight: bold;
+            background: rgba(255,255,255,0.7);
+            padding: 4px 8px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        .plant-visual {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            width: 50px;
+            transition: height 0.5s ease-out;
+        }
+
+        /* Навигация */
+        .nav-arrows {
+            position: absolute;
+            top: 50%;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            transform: translateY(-50%);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .arrow-btn {
+            pointer-events: auto;
+            background: rgba(0,0,0,0.4);
+            color: white;
+            border: none;
+            font-size: 30px;
+            padding: 20px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .arrow-btn:hover { background: rgba(0,0,0,0.7); }
+        .arrow-btn:disabled { opacity: 0.2; cursor: not-allowed; }
+
+        /* Блокировка биома */
+        #locked-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(8px);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 8;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #locked-overlay h2 { font-size: 32px; margin-bottom: 10px; text-shadow: 1px 1px white; }
+        #locked-overlay p { font-size: 20px; font-weight: bold; max-width: 600px; background: rgba(255,255,255,0.8); padding: 15px; border-radius: 10px; }
+
+        /* Модальные окна */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            position: relative;
+            min-width: 350px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 10px; left: 10px;
+            background: none;
+            border: 2px solid #333;
+            border-radius: 50%;
+            width: 30px; height: 30px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .upgrade-boxes {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+            gap: 10px;
+        }
+
+        .upgrade-box {
+            border: 2px solid #333;
+            border-radius: 10px;
+            padding: 10px;
+            cursor: pointer;
+            flex: 1;
+            font-size: 14px;
+            background: #f9f9f9;
+            transition: background 0.2s;
+        }
+
+        .upgrade-box:hover { background: #e0e0e0; }
+        .upgrade-box b { font-size: 18px; }
+
+        .flying-item {
+            position: fixed;
+            font-size: 30px;
+            z-index: 300;
+            pointer-events: none;
+            transition: all 1s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Стартовый экран -->
+    <div id="start-screen">
+        <h1>Shopping garden game</h1>
+        <button class="btn" onclick="startGame()">Играть</button>
+    </div>
+
+    <!-- Основная игра -->
+    <div id="game-screen">
+        <div class="header">
+            <div id="biome-title">Текущий биом: «Лес»</div>
+            <div id="balance-display">Баланс: 5 $</div>
+        </div>
+
+        <div class="side-menu">
+            <div class="icon-btn" onclick="openModal('how-to-play-modal')">❓<br>Как играть</div>
+            <div class="icon-btn" onclick="openModal('shop-modal')">💼<br>Магазин</div>
+        </div>
+
+        <div class="nav-arrows">
+            <button class="arrow-btn" id="btn-prev" onclick="changeBiome(-1)">&#10094; Прошлый биом</button>
+            <button class="arrow-btn" id="btn-next" onclick="changeBiome(1)">Следующий биом &#10095;</button>
+        </div>
+
+        <div id="biome-container" class="forest">
+            <div id="locked-overlay">
+                <h2>Текущий биом: город</h2>
+                <p>Чтобы разблокировать данный биом, надо вырастить до максимального размера (50см) все растения в прошлом биоме.</p>
+            </div>
+            <div id="plants-container"></div>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Улучшение -->
+    <div id="upgrade-modal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('upgrade-modal')">X</button>
+            <h2 id="upgrade-title">Улучшение: (яблоня)</h2>
+            <div class="upgrade-boxes">
+                <div class="upgrade-box" onclick="buyUpgrade(2, 2, 2, 20)">
+                    <b>+2 см</b><br><br>
+                    <span id="upg-desc-2">(+2 яблока = 20 монет)</span><br><br>
+                    Цена: 2$
+                </div>
+                <div class="upgrade-box" onclick="buyUpgrade(4, 4, 4, 40)">
+                    <b>+4 см</b><br><br>
+                    <span id="upg-desc-4">(+4 яблока = 40 монет)</span><br><br>
+                    Цена: 4$
+                </div>
+                <div class="upgrade-box" onclick="buyUpgrade(5, 5, 5, 50)">
+                    <b>+5 см</b><br><br>
+                    <span id="upg-desc-5">(+5 яблок = 50 монет)</span><br><br>
+                    Цена: 5$
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Магазин -->
+    <div id="shop-modal" class="modal">
+        <div class="modal-content" style="min-width: 250px;">
+            <button class="close-btn" onclick="closeModal('shop-modal')">X</button>
+            <h2>Магазин</h2>
+            <p>Функцию ещё не добавили</p>
+        </div>
+    </div>
+
+    <!-- Модальное окно: Как играть -->
+    <div id="how-to-play-modal" class="modal">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal('how-to-play-modal')">X</button>
+            <h2>Как играть</h2>
+            <p style="text-align: left;">
+                1. Нажимайте на растения или надписи над ними, чтобы открыть меню улучшений.<br><br>
+                2. Покупайте улучшения (на 2, 4 или 5 см). Каждое улучшение приносит плоды, которые пополняют ваш баланс.<br><br>
+                3. Максимальный размер растения — 50 см.<br><br>
+                4. Вырастите все растения в биоме до максимума, чтобы разблокировать следующий биом!
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Данные игры
+        const biomesData = [
+            { id: 'forest', name: 'Лес' },
+            { id: 'city', name: 'Город' }
+        ];
+
+        const itemNames = {
+            'Яблоня': ['яблока', 'яблок', '🍎'],
+            'Груша': ['груши', 'груш', '🍐'],
+            'Ель': ['шишки', 'шишек', '🌲'],
+            'Куст': ['малины', 'малины', '🍓'],
+            'Клумба': ['цветка', 'цветов', '🌸'],
+            'Дерево': ['листа', 'листьев', '🍃']
+        };
+
+        const defaultPlants = [
+            [ // Лес
+                { name: 'Куст', size: 0 },
+                { name: 'Ель', size: 0 },
+                { name: 'Груша', size: 0 },
+                { name: 'Яблоня', size: 0 }
+            ],
+            [ // Город
+                { name: 'Клумба', size: 0 },
+                { name: 'Куст', size: 0 },
+                { name: 'Дерево', size: 0 },
+                { name: 'Яблоня', size: 0 }
+            ]
+        ];
+
+        let state = {
+            balance: 5,
+            currentBiome: 0,
+            biomesUnlocked: [true, false],
+            plants: JSON.parse(JSON.stringify(defaultPlants))
+        };
+
+        let currentUpgradePlant = 0;
+
+        // Инициализация
+        function loadState() {
+            const saved = localStorage.getItem('shoppingGardenState');
+            if (saved) {
+                state = JSON.parse(saved);
+            }
+        }
+
+        function saveState() {
+            localStorage.setItem('shoppingGardenState', JSON.stringify(state));
+        }
+
+        function startGame() {
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('game-screen').style.display = 'flex';
+            loadState();
+            renderGame();
+        }
+
+        // Отрисовка
+        function renderGame() {
+            document.getElementById('balance-display').innerText = `Баланс: ${state.balance} $`;
+            document.getElementById('biome-title').innerText = `Текущий биом: «${biomesData[state.currentBiome].name}»`;
+            
+            const container = document.getElementById('biome-container');
+            container.className = biomesData[state.currentBiome].id;
+
+            const isLocked = !state.biomesUnlocked[state.currentBiome];
+            document.getElementById('locked-overlay').style.display = isLocked ? 'flex' : 'none';
+            document.getElementById('plants-container').style.filter = isLocked ? 'blur(10px)' : 'none';
+
+            document.getElementById('btn-prev').disabled = state.currentBiome === 0;
+            document.getElementById('btn-next').disabled = state.currentBiome === biomesData.length - 1;
+
+            renderPlants();
+        }
+
+        function getPlantStyles(name) {
+            let style = '';
+            let hasTrunk = true;
+            if (name === 'Ель') {
+                style = 'clip-path: polygon(50% 0%, 0% 100%, 100% 100%); background: #2E7D32; border-radius: 0;';
+            } else if (name === 'Куст' || name === 'Клумба') {
+                style = `background: ${name==='Куст'?'#388E3C':'#E91E63'}; border-radius: 50%; height: 100%;`;
+                hasTrunk = false;
+            } else if (name === 'Груша') {
+                style = 'background: #8BC34A; border-radius: 50% 50% 30% 30%;';
+            } else {
+                style = 'background: #4CAF50; border-radius: 50%;'; // Яблоня, Дерево
+            }
+            return { style, hasTrunk };
+        }
+
+        function renderPlants() {
+            const container = document.getElementById('plants-container');
+            container.innerHTML = '';
+            const plants = state.plants[state.currentBiome];
+
+            plants.forEach((p, index) => {
+                const height = 40 + (p.size * 3); // 50см = 190px визуально
+                const { style, hasTrunk } = getPlantStyles(p.name);
+                
+                const trunkHtml = hasTrunk ? `<div style="width: 15px; height: 30%; background: #5D4037;"></div>` : '';
+
+                container.innerHTML += `
+                    <div class="plant-wrapper" id="plant-${index}" onclick="openUpgrade(${index})">
+                        <div class="plant-label">
+                            Нажми чтобы<br>улучшить<br>
+                            <span style="font-size: 16px;">${p.name}</span><br>
+                            ${p.size} см
+                        </div>
+                        <div class="plant-visual" style="height: ${height}px;">
+                            <div style="width: 100%; height: ${hasTrunk ? '70%' : '100%'}; ${style}"></div>
+                            ${trunkHtml}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // Навигация
+        function changeBiome(dir) {
+            let next = state.currentBiome + dir;
+            if (next >= 0 && next < biomesData.length) {
+                state.currentBiome = next;
+                renderGame();
+            }
+        }
+
+        // Модальные окна
+        function openModal(id) {
+            document.getElementById(id).style.display = 'flex';
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        function openUpgrade(index) {
+            if (!state.biomesUnlocked[state.currentBiome]) return;
+            
+            currentUpgradePlant = index;
+            const p = state.plants[state.currentBiome][index];
+            document.getElementById('upgrade-title').innerText = `Улучшение: (${p.name.toLowerCase()})`;
+
+            const itemsText24 = itemNames[p.name][0]; // для 2 и 4 шт
+            const itemsText5 = itemNames[p.name][1]; // для 5 шт
+
+            document.getElementById('upg-desc-2').innerText = `(+2 ${itemsText24} = 20 монет)`;
+            document.getElementById('upg-desc-4').innerText = `(+4 ${itemsText24} = 40 монет)`;
+            document.getElementById('upg-desc-5').innerText = `(+5 ${itemsText5} = 50 монет)`;
+
+            openModal('upgrade-modal');
+        }
+
+        // Логика покупки и анимации
+        function buyUpgrade(cm, cost, itemsCount, reward) {
+            if (state.balance < cost) {
+                alert("Недостаточно монет для этого улучшения!");
+                return;
+            }
+            
+            let p = state.plants[state.currentBiome][currentUpgradePlant];
+            if (p.size >= 50) {
+                alert("Это растение уже достигло максимального размера (50 см)!");
+                return;
+            }
+
+            state.balance -= cost;
+            p.size = Math.min(50, p.size + cm);
+            
+            document.getElementById('balance-display').innerText = `Баланс: ${state.balance} $`;
+            closeModal('upgrade-modal');
+            renderPlants();
+            saveState();
+
+            animateDrops(currentUpgradePlant, itemsCount, reward, p.name);
+        }
+
+        function animateDrops(plantIndex, count, totalReward, plantName) {
+            const plantEl = document.getElementById(`plant-${plantIndex}`);
+            const balanceEl = document.getElementById('balance-display');
+            
+            const pRect = plantEl.getBoundingClientRect();
+            const bRect = balanceEl.getBoundingClientRect();
+            const emoji = itemNames[plantName][2];
+
+            let completed = 0;
+
+            for(let i = 0; i < count; i++) {
+                setTimeout(() => {
+                    const el = document.createElement('div');
+                    el.className = 'flying-item';
+                    el.innerText = emoji;
+                    el.style.left = (pRect.left + pRect.width / 2 - 15) + 'px';
+                    el.style.top = (pRect.top + pRect.height / 2) + 'px';
+                    document.body.appendChild(el);
+
+                    // Форсируем перерисовку для срабатывания CSS-transition
+                    el.getBoundingClientRect();
+
+                    el.style.left = (bRect.left + 20) + 'px';
+                    el.style.top = (bRect.top + 10) + 'px';
+                    el.style.transform = 'scale(0.5)';
+                    el.style.opacity = '0.3';
+
+                    setTimeout(() => {
+                        el.remove();
+                        completed++;
+                        if (completed === count) {
+                            state.balance += totalReward;
+                            document.getElementById('balance-display').innerText = `Баланс: ${state.balance} $`;
+                            saveState();
+                            checkBiomeComplete();
+                        }
+                    }, 1000);
+                }, i * 150); // Небольшая задержка между вылетом предметов
+            }
+        }
+
+        function checkBiomeComplete() {
+            if (state.currentBiome === 0 && !state.biomesUnlocked[1]) {
+                const allMax = state.plants[0].every(p => p.size >= 50);
+                if (allMax) {
+                    state.biomesUnlocked[1] = true;
+                    saveState();
+                    setTimeout(() => {
+                        alert("Вы вырастили все растения в этом биоме до максимума, переходите в следующий!");
+                        renderGame();
+                    }, 500);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
